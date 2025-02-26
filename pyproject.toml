@@ -7,7 +7,7 @@ name = "semaphoreui-client"
 dynamic = ["version"]
 description = 'An api client for interacting with Semaphore UI'
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = "MIT"
 keywords = []
 authors = [
@@ -16,7 +16,6 @@ authors = [
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -24,7 +23,10 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
+dependencies = [
+  "dataclasses-json>=0.6.7",
+  "requests>=2.32.3",
+]
 
 [project.urls]
 Documentation = "https://github.com/Paul Hummer/semaphoreui-client#readme"
@@ -40,6 +42,9 @@ extra-dependencies = [
 ]
 [tool.hatch.envs.types.scripts]
 check = "mypy --install-types --non-interactive {args:semaphoreui_client tests}"
+
+[[tool.hatch.envs.hatch-test.matrix]]
+python = ["3.12", "3.11", "3.9"]
 
 [tool.coverage.run]
 source_pkgs = ["semaphoreui_client", "tests"]
