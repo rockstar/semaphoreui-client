@@ -29,9 +29,9 @@ dependencies = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/Paul Hummer/semaphoreui-client#readme"
-Issues = "https://github.com/Paul Hummer/semaphoreui-client/issues"
-Source = "https://github.com/Paul Hummer/semaphoreui-client"
+Documentation = "https://github.com/rockstar/semaphoreui-client#readme"
+Issues = "https://github.com/rockstar/semaphoreui-client/issues"
+Source = "https://github.com/rockstar/semaphoreui-client"
 
 [tool.hatch.version]
 path = "semaphoreui_client/__about__.py"
