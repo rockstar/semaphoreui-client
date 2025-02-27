@@ -187,13 +187,29 @@ class SemaphoreUIClient:
     ) -> "Key":
         if key_type not in ("ssh", "login_password"):
             raise ValueError(f"Invalid key_type: {key_type}. Acceptable values are: ssh, login_password")
-        if key_type == "ssh" and ssh is None:
-            raise ValueError("ssh parameter must be set on key_type: ssh")
-        elif key_type == "login_password" and login_password is None:
-            raise ValueError("login_password parameter must be set on key_type: login_password")
-        response = self.http.post(
-            f"{self.api_endpoint}/project/{project_id}/keys",
-            json={
+        if key_type == "ssh":
+            if ssh is None:
+                raise ValueError("ssh parameter must be set on key_type: ssh")
+            json_data =             json={
+                "id": 0,
+                "project_id": project_id,
+                "name": name,
+                "type": key_type,
+                "override_secret": override_secret,
+                "login_password": {
+                    "login": "",
+                    "password": "",
+                },
+                "ssh": {
+                    "login": ssh[0],
+                    "passphrase": ssh[1],
+                    "private_key": ssh[2],
+                },
+            }
+        elif key_type == "login_password":
+            if login_password is None:
+                raise ValueError("login_password parameter must be set on key_type: login_password")
+            json_data = {
                 "id": 0,
                 "project_id": project_id,
                 "name": name,
@@ -203,12 +219,11 @@ class SemaphoreUIClient:
                     "login": login_password[0],
                     "password": login_password[1],
                 },
-                "ssh": {
-                    "login": ssh[0],
-                    "passphrase": ssh[1],
-                    "private_key": ssh[2],
-                },
-            },
+                "ssh": {"login": "", "passphrase": "", "private_key": ""}
+            }
+        response = self.http.post(
+            f"{self.api_endpoint}/project/{project_id}/keys",
+            json=json_data
         )
         assert response.status_code == 204
 
@@ -517,10 +532,9 @@ class Project:
         self,
         name: str,
         key_type: str,
-        override_secret: bool,
-        string: str,
-        login_password: typing.Optional[typing.Tuple[str, str]],
-        ssh: typing.Optional[typing.Tuple[str, str, str]],
+        override_secret: bool=False,
+        login_password: typing.Optional[typing.Tuple[str, str]]=None,
+        ssh: typing.Optional[typing.Tuple[str, str, str]]=None,
     ):
         return self.client.create_project_key(
             self.id, name, key_type, override_secret, login_password, ssh
