@@ -7,8 +7,12 @@ import requests
 
 class SemaphoreUIClient:
 
-    def __init__(self, host, path="/api"):
+    def __init__(self, host: str, path: str="/api"):
         self.http = requests.Session()
+        if host.endswith("/"):
+            host = host.strip("/")
+        if not path.startswith("/"):
+            path = f"/{path}"
         self.api_endpoint = f"{host}{path}"
 
     def login(self, user, password):
