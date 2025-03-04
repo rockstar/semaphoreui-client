@@ -186,11 +186,13 @@ class SemaphoreUIClient:
         ssh: typing.Optional[typing.Tuple[str, str, str]],
     ) -> "Key":
         if key_type not in ("ssh", "login_password"):
-            raise ValueError(f"Invalid key_type: {key_type}. Acceptable values are: ssh, login_password")
+            raise ValueError(
+                f"Invalid key_type: {key_type}. Acceptable values are: ssh, login_password"
+            )
         if key_type == "ssh":
             if ssh is None:
                 raise ValueError("ssh parameter must be set on key_type: ssh")
-            json_data =             json={
+            json_data = {
                 "id": 0,
                 "project_id": project_id,
                 "name": name,
@@ -208,7 +210,9 @@ class SemaphoreUIClient:
             }
         elif key_type == "login_password":
             if login_password is None:
-                raise ValueError("login_password parameter must be set on key_type: login_password")
+                raise ValueError(
+                    "login_password parameter must be set on key_type: login_password"
+                )
             json_data = {
                 "id": 0,
                 "project_id": project_id,
@@ -219,11 +223,10 @@ class SemaphoreUIClient:
                     "login": login_password[0],
                     "password": login_password[1],
                 },
-                "ssh": {"login": "", "passphrase": "", "private_key": ""}
+                "ssh": {"login": "", "passphrase": "", "private_key": ""},
             }
         response = self.http.post(
-            f"{self.api_endpoint}/project/{project_id}/keys",
-            json=json_data
+            f"{self.api_endpoint}/project/{project_id}/keys", json=json_data
         )
         assert response.status_code == 204
 
@@ -402,7 +405,7 @@ class SemaphoreUIClient:
         type: str,
         start_version: str,
         autorun: bool,
-        build_template_id: typing.Optional[int]=None,
+        build_template_id: typing.Optional[int] = None,
     ) -> "Template":
         response = self.http.post(
             f"{self.api_endpoint}/project/{project_id}/templates",
@@ -434,10 +437,66 @@ class SemaphoreUIClient:
             response.status_code == 201
         ), f"Expected response code 201, got {response.status_code}"
         return Template(**response.json(), client=self)
-    
+
     def delete_project_template(self, project_id: int, id: int):
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/templates/{id}"
+        )
+        assert response.status_code == 204
+
+    def get_project_schedules(self, project_id: int) -> typing.List["Schedule"]:
+        response = self.http.get(f"{self.api_endpoint}/project/{project_id}/schedules")
+        assert response.status_code == 200
+        return [Schedule(**schedule, client=self) for schedule in response.json()]
+
+    def create_project_schedule(
+        self,
+        project_id: int,
+        template_id: int,
+        name: str,
+        cron_format: str,
+        active: bool = True,
+    ):
+        response = self.http.post(
+            f"{self.api_endpoint}/project/{project_id}/schedules",
+            json={
+                "id": 0,
+                "project_id": project_id,
+                "template_id": template_id,
+                "name": name,
+                "cron_format": cron_format,
+                "active": active,
+            },
+        )
+        assert response.status_code == 201
+        return Schedule(**response.json(), client=self)
+
+    def update_project_schedule(
+        self,
+        project_id: int,
+        schedule_id: int,
+        template_id: int,
+        name: str,
+        cron_format: str,
+        active: bool,
+    ):
+        response = self.http.post(
+            f"{self.api_endpoint}/project/{project_id}/schedules",
+            json={
+                "id": schedule_id,
+                "project_id": project_id,
+                "template_id": template_id,
+                "name": name,
+                "cron_format": cron_format,
+                "active": active,
+            },
+        )
+        assert response.status_code == 201
+        return Schedule(**response.json(), client=self)
+
+    def delete_project_schedule(self, project_id: int, schedule_id: int):
+        response = self.http.get(
+            f"{self.api_endpoint}/project/{project_id}/schedules/{schedule_id}"
         )
         assert response.status_code == 204
 
@@ -532,9 +591,9 @@ class Project:
         self,
         name: str,
         key_type: str,
-        override_secret: bool=False,
-        login_password: typing.Optional[typing.Tuple[str, str]]=None,
-        ssh: typing.Optional[typing.Tuple[str, str, str]]=None,
+        override_secret: bool = False,
+        login_password: typing.Optional[typing.Tuple[str, str]] = None,
+        ssh: typing.Optional[typing.Tuple[str, str, str]] = None,
     ):
         return self.client.create_project_key(
             self.id, name, key_type, override_secret, login_password, ssh
@@ -610,7 +669,7 @@ class Project:
         type: str,
         start_version: str,
         autorun: bool,
-        build_template_id: typing.Optional[int]=None,
+        build_template_id: typing.Optional[int] = None,
     ) -> "Template":
         return self.client.create_project_template(
             self.id,
@@ -633,6 +692,16 @@ class Project:
             start_version,
             autorun,
             build_template_id,
+        )
+
+    def schedules(self) -> typing.List["Schedule"]:
+        return self.client.get_project_schedules(self.id)
+
+    def create_schedule(
+        self, template_id: int, name: str, cron_format: str, active: bool = True
+    ) -> "Schedule":
+        return self.client.create_project_schedule(
+            self.id, template_id, name, cron_format, active
         )
 
 
@@ -806,8 +875,32 @@ class Template:
     last_task: int
     tasks: int
 
-
     client: SemaphoreUIClient
 
     def delete(self):
         self.client.delete_project_template(self.project_id, self.id)
+
+
+@dataclass
+class Schedule:
+    id: int
+    cron_format: str
+    project_id: int
+    template_id: int
+    name: str
+    active: bool
+
+    client: SemaphoreUIClient
+
+    def save(self):
+        self.client.update_project_schedule(
+            self.project_id,
+            self.id,
+            self.template_id,
+            self.name,
+            self.cron_format,
+            self.active,
+        )
+
+    def delete(self):
+        self.client.delete_project_schedule(self.project_id, self.id)
