@@ -45,7 +45,7 @@ class SemaphoreUIClient:
         return Token(**response.json(), client=self)
 
     def delete_token(self, id):
-        response = self.http.post(f"{self.api_endpoint}/user/tokens/{id}")
+        response = self.http.delete(f"{self.api_endpoint}/user/tokens/{id}")
         assert response.status_code in (204, 404)  # 404 if token was already expired
 
     def projects(self) -> typing.List["Project"]:
