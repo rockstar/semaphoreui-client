@@ -417,7 +417,7 @@ class SemaphoreUIClient:
         response = self.http.post(
             f"{self.api_endpoint}/project/{project_id}/templates",
             json={
-                "id": 1,
+                "id": 0,
                 "project_id": project_id,
                 "inventory_id": inventory_id,
                 "repository_id": repository_id,
