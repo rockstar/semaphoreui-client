@@ -499,7 +499,7 @@ class SemaphoreUIClient:
         return Schedule(**response.json(), client=self)
 
     def delete_project_schedule(self, project_id: int, schedule_id: int):
-        response = self.http.get(
+        response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/schedules/{schedule_id}"
         )
         assert response.status_code == 204
