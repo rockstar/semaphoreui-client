@@ -92,13 +92,16 @@ class SemaphoreUIClient:
         alert: bool,
         alert_chat: str,
         max_parallel_tasks: int,
-        type: str,
+        type: typing.Optional[str]=None,
     ):
         response = self.http.put(
             f"{self.api_endpoint}/project/{id}",
             json={
                 "name": name,
                 "alert": alert,
+                "alert_chat": alert_chat,
+                "max_parallel_tasks": max_parallel_tasks,
+                "type": type,
             },
         )
         assert response.status_code == 204
