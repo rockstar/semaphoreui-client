@@ -894,6 +894,7 @@ class Schedule:
     cron_format: str
     project_id: int
     template_id: int
+    repository_id: typing.Optional[int]
     name: str
     active: bool
 
