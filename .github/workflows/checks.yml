@@ -36,4 +36,4 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install hatch
-      - run: hatch -e lint run check-lint
+      - run: hatch -e lint run lint
