@@ -25,9 +25,9 @@ class SemaphoreUIClient:
 
     def whoami(self) -> None:
         response = self.http.get(f"{self.api_endpoint}/auth/login")
-        assert (
-            response.status_code == 200
-        ), f"GET /auth/login return response {response.status_code}"
+        assert response.status_code == 200, (
+            f"GET /auth/login return response {response.status_code}"
+        )
 
     def logout(self) -> None:
         response = self.http.post(f"{self.api_endpoint}/auth/logout")
@@ -127,13 +127,15 @@ class SemaphoreUIClient:
 
     def add_project_user(self, id: int, user: "User") -> None:
         response = self.http.post(
-            f"{self.api_endpoint}/project/{id}/users", json=user.to_json()  # type: ignore
+            f"{self.api_endpoint}/project/{id}/users",
+            json=user.to_json(),  # type: ignore
         )
         assert response.status_code == 204
 
     def update_project_user(self, id: int, user: "User") -> None:
         response = self.http.put(
-            f"{self.api_endpoint}/project/{id}/users/{user.id}", json=user.to_json()  # type: ignore
+            f"{self.api_endpoint}/project/{id}/users/{user.id}",
+            json=user.to_json(),  # type: ignore
         )
         assert response.status_code == 204
 
@@ -439,9 +441,9 @@ class SemaphoreUIClient:
                 "autorun": autorun,
             },
         )
-        assert (
-            response.status_code == 201
-        ), f"Expected response code 201, got {response.status_code}"
+        assert response.status_code == 201, (
+            f"Expected response code 201, got {response.status_code}"
+        )
         return Template(**response.json(), client=self)
 
     def delete_project_template(self, project_id: int, id: int) -> None:
@@ -717,8 +719,7 @@ class Permissions:
 
 
 @dataclass
-class ProjectBackup:
-    ...
+class ProjectBackup: ...
 
 
 @dataclass
