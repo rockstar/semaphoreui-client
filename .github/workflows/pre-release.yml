@@ -21,6 +21,9 @@ jobs:
           python-version: "3.13"
       - run: pip install hatch
       - run: |
+          git config --global user.email "paul@eventuallyanyway.com"
+          git config --global user.name "Paul Hummer"
+
           hatch version ${{ inputs.version }}
           git commit -a -m "release: bump to version `hatch version`"
           git tag `hatch version`
