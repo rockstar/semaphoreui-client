@@ -9,7 +9,8 @@ on:
             default: patch
 
 jobs:
-  check-types:
+  bump-version-and-tag:
+    name: Bump the version and tag that new version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
