@@ -1,0 +1,26 @@
+name: Release a software
+
+on:
+  workflow_dispatch:
+    inputs:
+        version:
+            description: 'Version to release. Can be a version number, or one of major|minor|patch'
+            required: false
+            default: patch
+
+jobs:
+  check-types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{secrets.PRERELEASE_TOKEN}}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install hatch
+      - run: |
+          hatch version ${{ inputs.version }}
+          git commit -a "release: bump to version `hatch version`"
+          git tag `hatch version`
+          git push && git push --tags
