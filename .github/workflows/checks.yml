@@ -41,6 +41,7 @@ jobs:
       - run: hatch -e lint run lint
   maybe-release:
     runs-on: ubuntu-latest
+    permissions: write-all
     needs: ["check-types", "check-format", "check-lint"]
     steps:
       - uses: actions/checkout@v4
