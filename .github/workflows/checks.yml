@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
     paths-ignore:
       - '**.md'
   pull_request:
@@ -37,3 +39,10 @@ jobs:
           python-version: "3.13"
       - run: pip install hatch
       - run: hatch -e lint run lint
+  maybe-release:
+    runs-on: ubuntu-latest
+    needs: ["check-types", "check-format", "check-lint"]
+    steps:
+      - run: gh workflow run release.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
