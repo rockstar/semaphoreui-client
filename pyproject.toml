@@ -44,6 +44,9 @@ extra-dependencies = [
 check = "mypy --install-types --non-interactive {args:semaphoreui_client}"
 
 [tool.hatch.envs.lint]
+extra-dependencies = [
+  "black",
+]
 
 [tool.hatch.envs.lint.scripts]
 format = "black semaphoreui_client/"
