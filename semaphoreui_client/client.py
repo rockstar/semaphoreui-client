@@ -6,8 +6,7 @@ import requests
 
 
 class SemaphoreUIClient:
-
-    def __init__(self, host: str, path: str="/api"):
+    def __init__(self, host: str, path: str = "/api"):
         self.http = requests.Session()
         if host.endswith("/"):
             host = host.strip("/")
@@ -92,7 +91,7 @@ class SemaphoreUIClient:
         alert: bool,
         alert_chat: str,
         max_parallel_tasks: int,
-        type: typing.Optional[str]=None,
+        type: typing.Optional[str] = None,
     ) -> None:
         response = self.http.put(
             f"{self.api_endpoint}/project/{id}",
@@ -718,7 +717,8 @@ class Permissions:
 
 
 @dataclass
-class ProjectBackup: ...
+class ProjectBackup:
+    ...
 
 
 @dataclass

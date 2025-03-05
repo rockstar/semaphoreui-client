@@ -43,6 +43,13 @@ extra-dependencies = [
 [tool.hatch.envs.types.scripts]
 check = "mypy --install-types --non-interactive {args:semaphoreui_client}"
 
+[tool.hatch.envs.lint]
+
+[tool.hatch.envs.lint.scripts]
+format = "black semaphoreui_client/"
+check-format = "black --check semaphoreui_client/"
+diff-format = "black --diff semaphoreui_client/"
+
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.12", "3.11", "3.9"]
 
