@@ -1,4 +1,4 @@
-name: Release a software
+name: Tag a new version
 
 on:
   workflow_dispatch:
