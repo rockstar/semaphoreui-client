@@ -48,3 +48,4 @@ jobs:
       - run: gh workflow run release.yml
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: startsWith( github.ref, 'refs/tags/')
