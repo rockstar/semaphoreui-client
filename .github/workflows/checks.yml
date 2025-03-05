@@ -45,7 +45,11 @@ jobs:
     needs: ["check-types", "check-format", "check-lint"]
     steps:
       - uses: actions/checkout@v4
-      - run: gh workflow run release.yml
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install hatch
+      - run: gh workflow run release.yml --ref `hatch version`
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: startsWith( github.ref, 'refs/tags/')
