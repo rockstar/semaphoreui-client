@@ -15,7 +15,7 @@ class SemaphoreUIClient:
             path = f"/{path}"
         self.api_endpoint = f"{host}{path}"
 
-    def login(self, user, password):
+    def login(self, user: str, password: str) -> None:
         response = self.http.post(
             f"{self.api_endpoint}/auth/login", json={"auth": user, "password": password}
         )
@@ -24,13 +24,13 @@ class SemaphoreUIClient:
                 f"Username and/or password incorrect. Response from POST /auth/login was {response.status_code}"
             )
 
-    def whoami(self):
+    def whoami(self) -> None:
         response = self.http.get(f"{self.api_endpoint}/auth/login")
         assert (
             response.status_code == 200
         ), f"GET /auth/login return response {response.status_code}"
 
-    def logout(self):
+    def logout(self) -> None:
         response = self.http.post(f"{self.api_endpoint}/auth/logout")
         assert response.status_code == 204
 
@@ -44,7 +44,7 @@ class SemaphoreUIClient:
         assert response.status_code == 201
         return Token(**response.json(), client=self)
 
-    def delete_token(self, id):
+    def delete_token(self, id: str) -> None:
         response = self.http.delete(f"{self.api_endpoint}/user/tokens/{id}")
         assert response.status_code in (204, 404)  # 404 if token was already expired
 
@@ -81,7 +81,7 @@ class SemaphoreUIClient:
         assert response.status_code == 201
         return Project(**response.json(), client=self)
 
-    def delete_project(self, id: int):
+    def delete_project(self, id: int) -> None:
         response = self.http.delete(f"{self.api_endpoint}/project/{id}")
         assert response.status_code == 204
 
@@ -93,7 +93,7 @@ class SemaphoreUIClient:
         alert_chat: str,
         max_parallel_tasks: int,
         type: typing.Optional[str]=None,
-    ):
+    ) -> None:
         response = self.http.put(
             f"{self.api_endpoint}/project/{id}",
             json={
@@ -126,19 +126,19 @@ class SemaphoreUIClient:
         assert response.status_code == 200
         return [User(**data) for data in response.json()]
 
-    def add_project_user(self, id: int, user: "User"):
+    def add_project_user(self, id: int, user: "User") -> None:
         response = self.http.post(
             f"{self.api_endpoint}/project/{id}/users", json=user.to_json()  # type: ignore
         )
         assert response.status_code == 204
 
-    def update_project_user(self, id: int, user: "User"):
+    def update_project_user(self, id: int, user: "User") -> None:
         response = self.http.put(
             f"{self.api_endpoint}/project/{id}/users/{user.id}", json=user.to_json()  # type: ignore
         )
         assert response.status_code == 204
 
-    def remove_project_user(self, id: int, user_id: int):
+    def remove_project_user(self, id: int, user_id: int) -> None:
         response = self.http.delete(f"{self.api_endpoint}/project/{id}/users/{user_id}")
         assert response.status_code == 204
 
@@ -159,14 +159,14 @@ class SemaphoreUIClient:
 
     def update_project_integration(
         self, project_id: int, id: int, name: str, template_id: int
-    ):
+    ) -> None:
         response = self.http.put(
             f"{self.api_endpoint}/project/{project_id}/integrations/{id}",
             json={"project_id": project_id, "name": name, "template_id": template_id},
         )
         assert response.status_code == 204
 
-    def delete_project_integration(self, project_id: int, id: int):
+    def delete_project_integration(self, project_id: int, id: int) -> None:
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/integrations/{id}"
         )
@@ -245,7 +245,7 @@ class SemaphoreUIClient:
                 key for key in self.get_project_keys(project_id) if key.name == name
             ][0]
 
-    def delete_project_key(self, project_id: int, id: int):
+    def delete_project_key(self, project_id: int, id: int) -> None:
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/keys/{id}"
         )
@@ -281,7 +281,7 @@ class SemaphoreUIClient:
                 if repo.name == name
             ][0]
 
-    def delete_project_repository(self, project_id: int, id: int):
+    def delete_project_repository(self, project_id: int, id: int) -> None:
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/repositories/{id}"
         )
@@ -324,7 +324,7 @@ class SemaphoreUIClient:
                 if env.name == name
             ][0]
 
-    def delete_project_environment(self, project_id: int, id: int):
+    def delete_project_environment(self, project_id: int, id: int) -> None:
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/environment/{id}"
         )
@@ -343,7 +343,7 @@ class SemaphoreUIClient:
         assert response.status_code == 201
         return View(**response.json(), client=self)
 
-    def delete_project_view(self, project_id: int, id: int):
+    def delete_project_view(self, project_id: int, id: int) -> None:
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/views/{id}"
         )
@@ -380,7 +380,7 @@ class SemaphoreUIClient:
         assert response.status_code == 201
         return Inventory(**response.json(), client=self)
 
-    def delete_project_inventory(self, project_id: int, id: int):
+    def delete_project_inventory(self, project_id: int, id: int) -> None:
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/inventory/{id}"
         )
@@ -445,7 +445,7 @@ class SemaphoreUIClient:
         ), f"Expected response code 201, got {response.status_code}"
         return Template(**response.json(), client=self)
 
-    def delete_project_template(self, project_id: int, id: int):
+    def delete_project_template(self, project_id: int, id: int) -> None:
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/templates/{id}"
         )
@@ -463,7 +463,7 @@ class SemaphoreUIClient:
         name: str,
         cron_format: str,
         active: bool = True,
-    ):
+    ) -> "Schedule":
         response = self.http.post(
             f"{self.api_endpoint}/project/{project_id}/schedules",
             json={
@@ -486,7 +486,7 @@ class SemaphoreUIClient:
         name: str,
         cron_format: str,
         active: bool,
-    ):
+    ) -> None:
         response = self.http.post(
             f"{self.api_endpoint}/project/{project_id}/schedules",
             json={
@@ -499,9 +499,8 @@ class SemaphoreUIClient:
             },
         )
         assert response.status_code == 201
-        return Schedule(**response.json(), client=self)
 
-    def delete_project_schedule(self, project_id: int, schedule_id: int):
+    def delete_project_schedule(self, project_id: int, schedule_id: int) -> None:
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/schedules/{schedule_id}"
         )
@@ -519,12 +518,12 @@ class Integration:
 
     client: SemaphoreUIClient
 
-    def save(self):
+    def save(self) -> None:
         self.client.update_project_integration(
             self.project_id, self.id, self.name, self.template_id
         )
 
-    def delete(self):
+    def delete(self) -> None:
         self.client.delete_project_integration(self.project_id, self.id)
 
 
@@ -539,7 +538,7 @@ class Token:
 
     client: SemaphoreUIClient
 
-    def delete(self):
+    def delete(self) -> None:
         self.client.delete_token(self.id)
 
 
@@ -557,10 +556,10 @@ class Project:
 
     client: SemaphoreUIClient
 
-    def delete(self):
+    def delete(self) -> None:
         self.client.delete_project(self.id)
 
-    def save(self):
+    def save(self) -> None:
         self.client.update_project(
             self.id,
             self.name,
@@ -570,25 +569,25 @@ class Project:
             self.type,
         )
 
-    def backup(self):
+    def backup(self) -> "ProjectBackup":
         return self.client.backup_project(self.id)
 
-    def role(self):
+    def role(self) -> "Permissions":
         return self.client.get_project_role(self.id)
 
-    def events(self):
+    def events(self) -> typing.List["Event"]:
         return self.client.get_project_events(self.id)
 
-    def users(self, sort: str, order: str):
+    def users(self, sort: str, order: str) -> typing.List["User"]:
         return self.client.get_project_users(self.id, sort, order)
 
-    def add_user(self, user: "User"):
+    def add_user(self, user: "User") -> None:
         return self.client.add_project_user(self.id, user)
 
-    def remove_user(self, user_id: int):
+    def remove_user(self, user_id: int) -> None:
         return self.client.remove_project_user(self.id, user_id)
 
-    def update_user(self, user: "User"):
+    def update_user(self, user: "User") -> None:
         return self.client.update_project_user(self.id, user)
 
     def keys(self) -> typing.List["Key"]:
@@ -601,7 +600,7 @@ class Project:
         override_secret: bool = False,
         login_password: typing.Optional[typing.Tuple[str, str]] = None,
         ssh: typing.Optional[typing.Tuple[str, str, str]] = None,
-    ):
+    ) -> "Key":
         return self.client.create_project_key(
             self.id, name, key_type, override_secret, login_password, ssh
         )
@@ -769,22 +768,7 @@ class Key:
 
     client: SemaphoreUIClient
 
-    @classmethod
-    def from_dict(cls, **keys) -> "Key":
-        ssh = KeySsh(
-            login=keys["ssh"]["login"],
-            passphrase=keys["ssh"]["passphrase"],
-            private_key=keys["ssh"]["private_key"],
-        )
-        login_password = KeyLoginPassword(
-            login=keys["login_password"]["login"],
-            password=keys["login_password"]["password"],
-        )
-        del keys["ssh"]
-        del keys["login_password"]
-        return cls(**keys, ssh=ssh, login_password=login_password)
-
-    def delete(self):
+    def delete(self) -> None:
         self.client.delete_project_key(self.project_id, self.id)
 
 
@@ -799,7 +783,7 @@ class Repository:
 
     client: SemaphoreUIClient
 
-    def delete(self):
+    def delete(self) -> None:
         self.client.delete_project_repository(self.project_id, self.id)
 
 
@@ -822,7 +806,7 @@ class Environment:
 
     client: SemaphoreUIClient
 
-    def delete(self):
+    def delete(self) -> None:
         self.client.delete_project_environment(self.project_id, self.id)
 
 
@@ -835,7 +819,7 @@ class View:
 
     client: SemaphoreUIClient
 
-    def delete(self):
+    def delete(self) -> None:
         self.client.delete_project_view(self.project_id, self.id)
 
 
@@ -854,7 +838,7 @@ class Inventory:
 
     client: SemaphoreUIClient
 
-    def delete(self):
+    def delete(self) -> None:
         self.client.delete_project_inventory(self.project_id, self.id)
 
 
@@ -884,7 +868,7 @@ class Template:
 
     client: SemaphoreUIClient
 
-    def delete(self):
+    def delete(self) -> None:
         self.client.delete_project_template(self.project_id, self.id)
 
 
@@ -900,7 +884,7 @@ class Schedule:
 
     client: SemaphoreUIClient
 
-    def save(self):
+    def save(self) -> None:
         self.client.update_project_schedule(
             self.project_id,
             self.id,
@@ -910,5 +894,5 @@ class Schedule:
             self.active,
         )
 
-    def delete(self):
+    def delete(self) -> None:
         self.client.delete_project_schedule(self.project_id, self.id)
