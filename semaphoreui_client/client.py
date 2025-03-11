@@ -1,3 +1,5 @@
+"""Interfaces to the Semaphore HTTP API."""
+
 from dataclasses import dataclass
 import typing
 
@@ -6,7 +8,13 @@ import requests
 
 
 class SemaphoreUIClient:
-    def __init__(self, host: str, path: str = "/api"):
+    """An api client for Semaphore UI.
+
+    Every api operation can be performed from this client. However, it is recommended
+    that object-specific operations occur on the resulting objects.
+    """
+
+    def __init__(self, host: str, path: str = "/api"):  # noqa: D107
         self.http = requests.Session()
         if host.endswith("/"):
             host = host.strip("/")
@@ -15,6 +23,12 @@ class SemaphoreUIClient:
         self.api_endpoint = f"{host}{path}"
 
     def login(self, user: str, password: str) -> None:
+        """Log in to Semaphore.
+
+        This method uses a username and password to log in and stores authentication
+        data as a cookie. While it is possible to use, token auth would be preferred
+        here.
+        """
         response = self.http.post(
             f"{self.api_endpoint}/auth/login", json={"auth": user, "password": password}
         )
@@ -24,35 +38,45 @@ class SemaphoreUIClient:
             )
 
     def whoami(self) -> None:
+        """Get information about the current user."""
         response = self.http.get(f"{self.api_endpoint}/auth/login")
         assert response.status_code == 200, (
             f"GET /auth/login return response {response.status_code}"
         )
 
     def logout(self) -> None:
+        """Log out of semaphore.
+
+        This will take an authenticated client and de-authenticate it.
+        """
         response = self.http.post(f"{self.api_endpoint}/auth/logout")
         assert response.status_code == 204
 
     def tokens(self) -> typing.List["Token"]:
+        """Get all user tokens."""
         response = self.http.get(f"{self.api_endpoint}/user/tokens")
         assert response.status_code == 200
         return [Token(**token_data, client=self) for token_data in response.json()]
 
     def create_token(self) -> "Token":
+        """Create a user token."""
         response = self.http.post(f"{self.api_endpoint}/user/tokens")
         assert response.status_code == 201
         return Token(**response.json(), client=self)
 
     def delete_token(self, id: str) -> None:
+        """Delete a user token."""
         response = self.http.delete(f"{self.api_endpoint}/user/tokens/{id}")
         assert response.status_code in (204, 404)  # 404 if token was already expired
 
     def projects(self) -> typing.List["Project"]:
+        """Get all projects."""
         response = self.http.get(f"{self.api_endpoint}/projects")
         assert response.status_code == 200
         return [Project(**data, client=self) for data in response.json()]
 
     def get_project(self, id: int) -> "Project":
+        """Get a project."""
         response = self.http.get(f"{self.api_endpoint}/project/{id}")
         assert response.status_code == 200
         return Project(**response.json(), client=self)
@@ -66,6 +90,7 @@ class SemaphoreUIClient:
         type: typing.Optional[str] = None,
         demo: typing.Optional[bool] = False,
     ) -> "Project":
+        """Create a new project."""
         response = self.http.post(
             f"{self.api_endpoint}/projects",
             json={
@@ -81,6 +106,7 @@ class SemaphoreUIClient:
         return Project(**response.json(), client=self)
 
     def delete_project(self, id: int) -> None:
+        """Delete a project."""
         response = self.http.delete(f"{self.api_endpoint}/project/{id}")
         assert response.status_code == 204
 
@@ -93,6 +119,7 @@ class SemaphoreUIClient:
         max_parallel_tasks: int,
         type: typing.Optional[str] = None,
     ) -> None:
+        """Update a project."""
         response = self.http.put(
             f"{self.api_endpoint}/project/{id}",
             json={
@@ -106,26 +133,31 @@ class SemaphoreUIClient:
         assert response.status_code == 204
 
     def backup_project(self, id: int) -> "ProjectBackup":
+        """Back up a project."""
         response = self.http.get(f"{self.api_endpoint}/project/{id}/backup")
         assert response.status_code == 200
         return ProjectBackup(**response.json())
 
     def get_project_role(self, id: int) -> "Permissions":
+        """Get a role for a project."""
         response = self.http.get(f"{self.api_endpoint}/project/{id}/role")
         assert response.status_code == 200
         return Permissions(**response.json())
 
     def get_project_events(self, id: int) -> typing.List["Event"]:
+        """Get all events for a project."""
         response = self.http.get(f"{self.api_endpoint}/project/{id}/events")
         assert response.status_code == 200
         return [Event(**data) for data in response.json()]
 
     def get_project_users(self, id: int, sort: str, order: str) -> typing.List["User"]:
+        """Get all users for a project."""
         response = self.http.get(f"{self.api_endpoint}/project/{id}/")
         assert response.status_code == 200
         return [User(**data) for data in response.json()]
 
     def add_project_user(self, id: int, user: "User") -> None:
+        """Add a user to a project."""
         response = self.http.post(
             f"{self.api_endpoint}/project/{id}/users",
             json=user.to_json(),  # type: ignore
@@ -133,6 +165,7 @@ class SemaphoreUIClient:
         assert response.status_code == 204
 
     def update_project_user(self, id: int, user: "User") -> None:
+        """Update a project user."""
         response = self.http.put(
             f"{self.api_endpoint}/project/{id}/users/{user.id}",
             json=user.to_json(),  # type: ignore
@@ -140,10 +173,12 @@ class SemaphoreUIClient:
         assert response.status_code == 204
 
     def remove_project_user(self, id: int, user_id: int) -> None:
+        """Remove a user from a project."""
         response = self.http.delete(f"{self.api_endpoint}/project/{id}/users/{user_id}")
         assert response.status_code == 204
 
     def get_project_integrations(self, id: int) -> typing.List["Integration"]:
+        """Get all integrations for a project."""
         response = self.http.get(f"{self.api_endpoint}/project/{id}/integrations")
         assert response.status_code == 200
         return [Integration(**data, client=self) for data in response.json()]
@@ -151,6 +186,7 @@ class SemaphoreUIClient:
     def create_project_integrations(
         self, project_id: int, name: str, template_id: int
     ) -> "Integration":
+        """Create a project integration."""
         response = self.http.post(
             f"{self.api_endpoint}/project/{id}integrations",
             json={"project_id": project_id, "name": name, "template_id": template_id},
@@ -161,6 +197,7 @@ class SemaphoreUIClient:
     def update_project_integration(
         self, project_id: int, id: int, name: str, template_id: int
     ) -> None:
+        """Update a project integration."""
         response = self.http.put(
             f"{self.api_endpoint}/project/{project_id}/integrations/{id}",
             json={"project_id": project_id, "name": name, "template_id": template_id},
@@ -168,6 +205,7 @@ class SemaphoreUIClient:
         assert response.status_code == 204
 
     def delete_project_integration(self, project_id: int, id: int) -> None:
+        """Delete a project integration."""
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/integrations/{id}"
         )
@@ -180,6 +218,7 @@ class SemaphoreUIClient:
         sort: typing.Optional[str] = None,
         order: typing.Optional[str] = None,
     ) -> typing.List["Key"]:
+        """Get a project key."""
         response = self.http.get(f"{self.api_endpoint}/project/{project_id}/keys")
         assert response.status_code == 200
         return [Key(**data, client=self) for data in response.json()]
@@ -193,6 +232,7 @@ class SemaphoreUIClient:
         login_password: typing.Optional[typing.Tuple[str, str]],
         ssh: typing.Optional[typing.Tuple[str, str, str]],
     ) -> "Key":
+        """Create a new project key."""
         if key_type not in ("ssh", "login_password"):
             raise ValueError(
                 f"Invalid key_type: {key_type}. Acceptable values are: ssh, login_password"
@@ -247,12 +287,14 @@ class SemaphoreUIClient:
             ][0]
 
     def delete_project_key(self, project_id: int, id: int) -> None:
+        """Delete a project key."""
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/keys/{id}"
         )
         assert response.status_code == 204
 
     def get_project_repositories(self, project_id: int) -> typing.List["Repository"]:
+        """Get all repositories for a project."""
         response = self.http.get(
             f"{self.api_endpoint}/project/{project_id}/repositories"
         )
@@ -262,6 +304,7 @@ class SemaphoreUIClient:
     def create_project_repository(
         self, project_id: int, name: str, git_url: str, git_branch: str, ssh_key_id: int
     ) -> "Repository":
+        """Create a new repository."""
         response = self.http.post(
             f"{self.api_endpoint}/project/{project_id}/repositories",
             json={
@@ -283,12 +326,14 @@ class SemaphoreUIClient:
             ][0]
 
     def delete_project_repository(self, project_id: int, id: int) -> None:
+        """Delete a project's repository."""
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/repositories/{id}"
         )
         assert response.status_code == 204
 
     def get_project_environments(self, project_id: int) -> typing.List["Environment"]:
+        """Get all environments for a project."""
         response = self.http.get(
             f"{self.api_endpoint}/project/{project_id}/environment"
         )
@@ -304,6 +349,7 @@ class SemaphoreUIClient:
         env: str,
         secrets: typing.List[typing.Dict[typing.Any, typing.Any]],
     ) -> "Environment":
+        """Create a new environment."""
         response = self.http.post(
             f"{self.api_endpoint}/project/{project_id}/environment",
             json={
@@ -326,17 +372,20 @@ class SemaphoreUIClient:
             ][0]
 
     def delete_project_environment(self, project_id: int, id: int) -> None:
+        """Delete a project environment."""
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/environment/{id}"
         )
         assert response.status_code == 204
 
     def get_project_views(self, project_id: int) -> typing.List["View"]:
+        """Get all project views."""
         response = self.http.get(f"{self.api_endpoint}/project/{project_id}/views")
         assert response.status_code == 200
         return [View(**data, client=self) for data in response.json()]
 
     def create_project_view(self, project_id: int, title: str, position: int) -> "View":
+        """Create a new project view."""
         response = self.http.post(
             f"{self.api_endpoint}/project/{project_id}/views",
             json={"position": position, "title": title, "project_id": project_id},
@@ -345,12 +394,14 @@ class SemaphoreUIClient:
         return View(**response.json(), client=self)
 
     def delete_project_view(self, project_id: int, id: int) -> None:
+        """Delete a project view."""
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/views/{id}"
         )
         assert response.status_code == 204
 
     def get_project_inventories(self, project_id: int) -> typing.List["Inventory"]:
+        """Get all project inventories."""
         response = self.http.get(f"{self.api_endpoint}/project/{project_id}/inventory")
         assert response.status_code == 200
         return [Inventory(**data, client=self) for data in response.json()]
@@ -365,6 +416,7 @@ class SemaphoreUIClient:
         type: str,
         repostory_id: int,
     ) -> "Inventory":
+        """Create a project inventory."""
         response = self.http.post(
             f"{self.api_endpoint}/project/{project_id}/inventory",
             json={
@@ -382,12 +434,14 @@ class SemaphoreUIClient:
         return Inventory(**response.json(), client=self)
 
     def delete_project_inventory(self, project_id: int, id: int) -> None:
+        """Delete a project inventory."""
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/inventory/{id}"
         )
         assert response.status_code == 204
 
     def get_project_templates(self, project_id: int) -> typing.List["Template"]:
+        """Get all project templates."""
         response = self.http.get(f"{self.api_endpoint}/project/{project_id}/templates")
         assert response.status_code == 200
         return [Template(**data, client=self) for data in response.json()]
@@ -415,6 +469,7 @@ class SemaphoreUIClient:
         autorun: bool,
         build_template_id: typing.Optional[int] = None,
     ) -> "Template":
+        """Create a new project template."""
         response = self.http.post(
             f"{self.api_endpoint}/project/{project_id}/templates",
             json={
@@ -447,12 +502,14 @@ class SemaphoreUIClient:
         return Template(**response.json(), client=self)
 
     def delete_project_template(self, project_id: int, id: int) -> None:
+        """Delete a project template."""
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/templates/{id}"
         )
         assert response.status_code == 204
 
     def get_project_schedules(self, project_id: int) -> typing.List["Schedule"]:
+        """Get a project schedule."""
         response = self.http.get(f"{self.api_endpoint}/project/{project_id}/schedules")
         assert response.status_code == 200
         return [Schedule(**schedule, client=self) for schedule in response.json()]
@@ -465,6 +522,7 @@ class SemaphoreUIClient:
         cron_format: str,
         active: bool = True,
     ) -> "Schedule":
+        """Create a project schedule."""
         response = self.http.post(
             f"{self.api_endpoint}/project/{project_id}/schedules",
             json={
@@ -488,6 +546,7 @@ class SemaphoreUIClient:
         cron_format: str,
         active: bool,
     ) -> None:
+        """Update a project schedule."""
         response = self.http.post(
             f"{self.api_endpoint}/project/{project_id}/schedules",
             json={
@@ -502,12 +561,14 @@ class SemaphoreUIClient:
         assert response.status_code == 201
 
     def delete_project_schedule(self, project_id: int, schedule_id: int) -> None:
+        """Delete a project schedule."""
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/schedules/{schedule_id}"
         )
         assert response.status_code == 204
 
     def get_project_tasks(self, project_id: int) -> typing.List["Task"]:
+        """Get all tasks for a project."""
         response = self.http.get(f"{self.api_endpoint}/project/{project_id}/tasks")
         assert response.status_code == 200
         return [
@@ -515,23 +576,27 @@ class SemaphoreUIClient:
         ]
 
     def stop_project_task(self, project_id: int, id: int) -> None:
+        """Stop a task."""
         response = self.http.post(
             f"{self.api_endpoint}/project/{project_id}/tasks/{id}/stop"
         )
         assert response.status_code == 204
 
     def get_project_task(self, project_id: int, id: int) -> "Task":
+        """Get a task."""
         response = self.http.get(f"{self.api_endpoint}/project/{project_id}/tasks/{id}")
         assert response.status_code == 200
         return Task(**response.json(), project_id=project_id, client=self)
 
     def delete_project_task(self, project_id: int, id: int) -> None:
+        """Delete a task."""
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/tasks/{id}"
         )
         assert response.status_code == 204
 
     def get_project_task_output(self, project_id: int, id: int) -> "TaskOutput":
+        """Get a task's output."""
         response = self.http.get(
             f"{self.api_endpoint}/project/{project_id}/tasks/{id}/output"
         )
@@ -541,7 +606,7 @@ class SemaphoreUIClient:
 
 @dataclass
 class Integration:
-    """A project integration"""
+    """A project integration."""
 
     id: int
     name: str
@@ -551,11 +616,13 @@ class Integration:
     client: SemaphoreUIClient
 
     def save(self) -> None:
+        """Save updates to the integration."""
         self.client.update_project_integration(
             self.project_id, self.id, self.name, self.template_id
         )
 
     def delete(self) -> None:
+        """Delete the integration."""
         self.client.delete_project_integration(self.project_id, self.id)
 
 
@@ -571,6 +638,7 @@ class Token:
     client: SemaphoreUIClient
 
     def delete(self) -> None:
+        """Delete the token."""
         self.client.delete_token(self.id)
 
 
@@ -589,9 +657,11 @@ class Project:
     client: SemaphoreUIClient
 
     def delete(self) -> None:
+        """Delete the project."""
         self.client.delete_project(self.id)
 
     def save(self) -> None:
+        """Save changes to the project."""
         self.client.update_project(
             self.id,
             self.name,
@@ -602,27 +672,35 @@ class Project:
         )
 
     def backup(self) -> "ProjectBackup":
+        """Get a backup of the project."""
         return self.client.backup_project(self.id)
 
     def role(self) -> "Permissions":
+        """Get a new role."""
         return self.client.get_project_role(self.id)
 
     def events(self) -> typing.List["Event"]:
+        """Get all events."""
         return self.client.get_project_events(self.id)
 
     def users(self, sort: str, order: str) -> typing.List["User"]:
+        """Get all users."""
         return self.client.get_project_users(self.id, sort, order)
 
     def add_user(self, user: "User") -> None:
+        """Add a new user."""
         return self.client.add_project_user(self.id, user)
 
     def remove_user(self, user_id: int) -> None:
+        """Delete a user."""
         return self.client.remove_project_user(self.id, user_id)
 
     def update_user(self, user: "User") -> None:
+        """Update a user."""
         return self.client.update_project_user(self.id, user)
 
     def keys(self) -> typing.List["Key"]:
+        """Get all keys."""
         return self.client.get_project_keys(self.id)
 
     def create_key(
@@ -633,21 +711,25 @@ class Project:
         login_password: typing.Optional[typing.Tuple[str, str]] = None,
         ssh: typing.Optional[typing.Tuple[str, str, str]] = None,
     ) -> "Key":
+        """Create a new key."""
         return self.client.create_project_key(
             self.id, name, key_type, override_secret, login_password, ssh
         )
 
     def repositories(self) -> typing.List["Repository"]:
+        """Get all repositories."""
         return self.client.get_project_repositories(self.id)
 
     def create_repository(
         self, name: str, git_url: str, git_branch: str, ssh_key_id: int
     ) -> "Repository":
+        """Create a new repository."""
         return self.client.create_project_repository(
             self.id, name, git_url, git_branch, ssh_key_id
         )
 
     def environments(self) -> typing.List["Environment"]:
+        """Get all environments."""
         return self.client.get_project_environments(self.id)
 
     def create_environment(
@@ -658,17 +740,21 @@ class Project:
         env: str,
         secrets: typing.List[typing.Dict[typing.Any, typing.Any]],
     ) -> "Environment":
+        """Create a new environment."""
         return self.client.create_project_environment(
             self.id, name, password, json, env, secrets
         )
 
     def views(self) -> typing.List["View"]:
+        """Get all views."""
         return self.client.get_project_views(self.id)
 
     def create_view(self, title: str, position: int) -> "View":
+        """Create a new view."""
         return self.client.create_project_view(self.id, title, position)
 
     def inventories(self) -> typing.List["Inventory"]:
+        """Get all inventories."""
         return self.client.get_project_inventories(self.id)
 
     def create_inventory(
@@ -680,11 +766,13 @@ class Project:
         type: str,
         repository_id: int,
     ) -> "Inventory":
+        """Create an inventory."""
         return self.client.create_project_inventory(
             self.id, name, inventory, ssh_key_id, become_key_id, type, repository_id
         )
 
     def templates(self) -> typing.List["Template"]:
+        """Get all templates."""
         return self.client.get_project_templates(self.id)
 
     def create_template(
@@ -709,6 +797,7 @@ class Project:
         autorun: bool,
         build_template_id: typing.Optional[int] = None,
     ) -> "Template":
+        """Create a new template."""
         return self.client.create_project_template(
             self.id,
             name,
@@ -733,34 +822,43 @@ class Project:
         )
 
     def schedules(self) -> typing.List["Schedule"]:
+        """Get all schedules."""
         return self.client.get_project_schedules(self.id)
 
     def create_schedule(
         self, template_id: int, name: str, cron_format: str, active: bool = True
     ) -> "Schedule":
+        """Create a new schedule for a template."""
         return self.client.create_project_schedule(
             self.id, template_id, name, cron_format, active
         )
 
     def tasks(self) -> typing.List["Task"]:
+        """Get all tasks for a project."""
         return self.client.get_project_tasks(self.id)
 
     def get_task(self, task_id: int) -> "Task":
+        """Get a task."""
         return self.client.get_project_task(self.id, task_id)
 
 
 @dataclass
 class Permissions:
+    """Authorization permissions for a user."""
+
     role: str
     permissions: int
 
 
 @dataclass
-class ProjectBackup: ...
+class ProjectBackup:
+    """A backup of a project."""
 
 
 @dataclass
 class Event:
+    """A system event."""
+
     project_id: int
     user_id: int
     object_id: str
@@ -771,16 +869,21 @@ class Event:
 @dataclass_json
 @dataclass
 class User:
+    """A user."""
+
     user_id: int
     role: str
 
     @property
     def id(self) -> int:
+        """The id of the user."""
         return self.user_id
 
 
 @dataclass
 class KeySsh:
+    """A key using ssh for authentication."""
+
     login: str
     passphrase: str
     private_key: str
@@ -788,12 +891,16 @@ class KeySsh:
 
 @dataclass
 class KeyLoginPassword:
+    """A key using username and password for authentication."""
+
     login: str
     password: str
 
 
 @dataclass
 class Key:
+    """A key for authentication."""
+
     id: int
     name: str
     type: str
@@ -807,11 +914,14 @@ class Key:
     client: SemaphoreUIClient
 
     def delete(self) -> None:
+        """Delete the key."""
         self.client.delete_project_key(self.project_id, self.id)
 
 
 @dataclass
 class Repository:
+    """A git repository."""
+
     id: int
     name: str
     project_id: int
@@ -822,11 +932,14 @@ class Repository:
     client: SemaphoreUIClient
 
     def delete(self) -> None:
+        """Delete the repository."""
         self.client.delete_project_repository(self.project_id, self.id)
 
 
 @dataclass
 class Secret:
+    """A secret value."""
+
     id: int
     name: str
     type: str
@@ -834,6 +947,12 @@ class Secret:
 
 @dataclass
 class Environment:
+    """An execution environment.
+
+    This type allows one to add variables to the environment for template
+    execution.
+    """
+
     id: int
     name: str
     project_id: int
@@ -845,11 +964,14 @@ class Environment:
     client: SemaphoreUIClient
 
     def delete(self) -> None:
+        """Delete the environment."""
         self.client.delete_project_environment(self.project_id, self.id)
 
 
 @dataclass
 class View:
+    """A view to simplify viewing task executions."""
+
     id: int
     title: str
     position: int
@@ -858,11 +980,14 @@ class View:
     client: SemaphoreUIClient
 
     def delete(self) -> None:
+        """Delete the view."""
         self.client.delete_project_view(self.project_id, self.id)
 
 
 @dataclass
 class Inventory:
+    """A host inventory."""
+
     id: int
     name: str
     project_id: int
@@ -877,11 +1002,19 @@ class Inventory:
     client: SemaphoreUIClient
 
     def delete(self) -> None:
+        """Delete the inventory."""
         self.client.delete_project_inventory(self.project_id, self.id)
 
 
 @dataclass
 class Template:
+    """A task template.
+
+    A template is best thought of as a many-to-many relationship
+    between a playbook and an inventory. Tasks serve as instances
+    of the template.
+    """
+
     id: int
     project_id: int
     repository_id: int
@@ -907,11 +1040,18 @@ class Template:
     client: SemaphoreUIClient
 
     def delete(self) -> None:
+        """Delete the template."""
         self.client.delete_project_template(self.project_id, self.id)
 
 
 @dataclass
 class Schedule:
+    """A Schedule for running a Template.
+
+    This is Semaphore's equivalent to a cron job. It is scheduled
+    in the same way.
+    """
+
     id: int
     cron_format: str
     project_id: int
@@ -923,6 +1063,7 @@ class Schedule:
     client: SemaphoreUIClient
 
     def save(self) -> None:
+        """Save changes to the schedule."""
         self.client.update_project_schedule(
             self.project_id,
             self.id,
@@ -933,11 +1074,14 @@ class Schedule:
         )
 
     def delete(self) -> None:
+        """Delete the schedule."""
         self.client.delete_project_schedule(self.project_id, self.id)
 
 
 @dataclass
 class Task:
+    """A task execution."""
+
     id: int
     template_id: int
     status: str
@@ -955,17 +1099,22 @@ class Task:
     client: SemaphoreUIClient
 
     def stop(self) -> None:
+        """Stop a task."""
         self.client.stop_project_task(self.project_id, self.id)
 
     def delete(self) -> None:
+        """Delete a task."""
         self.client.delete_project_task(self.project_id, self.id)
 
     def output(self) -> "TaskOutput":
+        """Get the output for a task."""
         return self.client.get_project_task_output(self.project_id, self.id)
 
 
 @dataclass
 class TaskOutput:
+    """Output from a task."""
+
     task_id: int
     time: str
     output: str

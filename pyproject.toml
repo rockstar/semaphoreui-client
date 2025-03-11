@@ -78,3 +78,9 @@ exclude_lines = [
 
 [tool.mypy]
 strict = true
+
+[tool.ruff.lint]
+select = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
