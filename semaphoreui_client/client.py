@@ -507,6 +507,37 @@ class SemaphoreUIClient:
         )
         assert response.status_code == 204
 
+    def get_project_tasks(self, project_id: int) -> typing.List["Task"]:
+        response = self.http.get(f"{self.api_endpoint}/project/{project_id}/tasks")
+        assert response.status_code == 200
+        return [
+            Task(**task, project_id=project_id, client=self) for task in response.json()
+        ]
+
+    def stop_project_task(self, project_id: int, id: int) -> None:
+        response = self.http.post(
+            f"{self.api_endpoint}/project/{project_id}/tasks/{id}/stop"
+        )
+        assert response.status_code == 204
+
+    def get_project_task(self, project_id: int, id: int) -> "Task":
+        response = self.http.get(f"{self.api_endpoint}/project/{project_id}/tasks/{id}")
+        assert response.status_code == 200
+        return Task(**response.json(), project_id=project_id, client=self)
+
+    def delete_project_task(self, project_id: int, id: int) -> None:
+        response = self.http.delete(
+            f"{self.api_endpoint}/project/{project_id}/tasks/{id}"
+        )
+        assert response.status_code == 204
+
+    def get_project_task_output(self, project_id: int, id: int) -> "TaskOutput":
+        response = self.http.get(
+            f"{self.api_endpoint}/project/{project_id}/tasks/{id}/output"
+        )
+        assert response.status_code == 200
+        return TaskOutput(**response.json())
+
 
 @dataclass
 class Integration:
@@ -711,6 +742,12 @@ class Project:
             self.id, template_id, name, cron_format, active
         )
 
+    def tasks(self) -> typing.List["Task"]:
+        return self.client.get_project_tasks(self.id)
+
+    def get_task(self, task_id: int) -> "Task":
+        return self.client.get_project_task(self.id, task_id)
+
 
 @dataclass
 class Permissions:
@@ -897,3 +934,38 @@ class Schedule:
 
     def delete(self) -> None:
         self.client.delete_project_schedule(self.project_id, self.id)
+
+
+@dataclass
+class Task:
+    id: int
+    template_id: int
+    status: str
+    debug: bool
+    playbook: str
+    environment: str
+    secret: str
+    limit: str
+    git_branch: str
+    message: str
+
+    # Project id isn't included in the api type, but is required
+    # to perform operations.
+    project_id: int
+    client: SemaphoreUIClient
+
+    def stop(self) -> None:
+        self.client.stop_project_task(self.project_id, self.id)
+
+    def delete(self) -> None:
+        self.client.delete_project_task(self.project_id, self.id)
+
+    def output(self) -> "TaskOutput":
+        return self.client.get_project_task_output(self.project_id, self.id)
+
+
+@dataclass
+class TaskOutput:
+    task_id: int
+    time: str
+    output: str
