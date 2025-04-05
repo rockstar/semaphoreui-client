@@ -899,7 +899,7 @@ class Template:
     build_template_id: int
     autorun: bool
     vault_key_id: int
-    last_task: int
+    last_task: typing.Optional["Task"]
     tasks: int
 
     client: SemaphoreUIClient
@@ -936,20 +936,37 @@ class Schedule:
 
 @dataclass
 class Task:
-    id: int
-    template_id: int
-    status: str
+    arguments: typing.Optional[str]
+    build_task: typing.Optional["Task"]
+    build_task_id: typing.Optional[int]
+    commit_hash: typing.Optional[str]
+    commit_message: str
+    created: str
     debug: bool
-    playbook: str
+    diff: bool
+    dry_run: bool
+    end: bool
     environment: str
-    secret: str
+    id: int
+    integration_id: typing.Optional[int]
+    inventory_id: typing.Optional[int]
     limit: str
-    git_branch: str
     message: str
-
-    # Project id isn't included in the api type, but is required
-    # to perform operations.
+    playbook: str
     project_id: int
+    schedule_id: typing.Optional[int]
+    secret: str
+    start: str
+    status: str
+    template_id: int
+    tpl_alias: str
+    tpl_app: str
+    tpl_playbook: str
+    tpl_type: str
+    user_id: typing.Optional[int]
+    user_name: typing.Optional[str]
+    version: typing.Optional[str]
+
     client: SemaphoreUIClient
 
     def stop(self) -> None:
