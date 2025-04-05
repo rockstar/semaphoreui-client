@@ -451,6 +451,37 @@ class SemaphoreUIClient:
         )
         return Template(**response.json(), client=self)
 
+    def run_template(
+        self,
+        template_id: int,
+        project_id: int,
+        debug: bool,
+        dry_run: bool,
+        diff: bool,
+        message: str,
+        git_branch: str,
+        limit: int,
+        environment_id: int,
+        playbook: str,
+    ) -> "Task":
+        response = self.http.post(
+            f"{self.api_endpoint}/project/{project_id}/tasks",
+            json={
+                "template_id": template_id,
+                "debug": debug,
+                "dry_run": dry_run,
+                "diff": diff,
+                "playbook": playbook,
+                "environment": environment_id,
+                "limit": limit,
+                "git_branch": git_branch,
+                "message": message,
+            },
+        )
+        assert response.status_code == 201
+        # The response is not quite a full task, so re-fetch it.
+        return self.get_project_task(project_id, response.json()["id"])
+
     def delete_project_template(self, project_id: int, id: int) -> None:
         response = self.http.delete(
             f"{self.api_endpoint}/project/{project_id}/templates/{id}"
@@ -908,6 +939,33 @@ class Template:
     tasks: int
 
     client: SemaphoreUIClient
+
+    def run(
+        self,
+        debug: bool = False,
+        dry_run: bool = False,
+        diff: bool = False,
+        message: str = "",
+        limit: int = 1,
+    ) -> "Task":
+        repo = [
+            repo
+            for repo in self.client.get_project_repositories(self.project_id)
+            if repo.id == self.repository_id
+        ][0]
+        git_branch = repo.git_branch
+        return self.client.run_template(
+            self.id,
+            self.project_id,
+            debug,
+            dry_run,
+            diff,
+            message,
+            git_branch,
+            limit,
+            self.environment_id,
+            self.playbook,
+        )
 
     def delete(self) -> None:
         self.client.delete_project_template(self.project_id, self.id)
