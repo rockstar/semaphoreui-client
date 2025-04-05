@@ -534,14 +534,12 @@ class SemaphoreUIClient:
         )
         assert response.status_code == 204
 
-    def get_project_task_output(
-        self, project_id: int, id: int
-    ) -> typing.List["TaskOutput"]:
+    def get_project_task_output(self, project_id: int, id: int) -> str:
         response = self.http.get(
             f"{self.api_endpoint}/project/{project_id}/tasks/{id}/output"
         )
         assert response.status_code == 200
-        return [TaskOutput(**data) for data in response.json()]
+        return "\n".join(data["output"] for data in response.json())
 
 
 @dataclass
@@ -982,16 +980,5 @@ class Task:
     def delete(self) -> None:
         self.client.delete_project_task(self.project_id, self.id)
 
-    def output(self) -> typing.List["TaskOutput"]:
+    def output(self) -> str:
         return self.client.get_project_task_output(self.project_id, self.id)
-
-    def normalized_output(self) -> typing.List[str]:
-        return [output.output for output in self.output()]
-
-
-@dataclass
-class TaskOutput:
-    task_id: int
-    task: str
-    time: str
-    output: str
