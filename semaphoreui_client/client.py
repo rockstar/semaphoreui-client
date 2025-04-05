@@ -394,7 +394,7 @@ class SemaphoreUIClient:
         for template in response.json():
             if template["last_task"] is not None:
                 template["last_task"] = Task(**template["last_task"], client=self)
-            templates.append(template)
+            templates.append(Template(**template, client=self))
         return templates
 
     def create_project_template(
