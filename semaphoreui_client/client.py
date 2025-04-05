@@ -392,8 +392,8 @@ class SemaphoreUIClient:
         assert response.status_code == 200
         templates: typing.List["Template"] = []
         for template in response.json():
-            if template.last_task is not None:
-                template.last_task = Task(**template.last_task, client=self)
+            if template["last_task"] is not None:
+                template["last_task"] = Task(**template["last_task"], client=self)
             template.append(templates)
         return templates
 
