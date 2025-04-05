@@ -510,9 +510,7 @@ class SemaphoreUIClient:
     def get_project_tasks(self, project_id: int) -> typing.List["Task"]:
         response = self.http.get(f"{self.api_endpoint}/project/{project_id}/tasks")
         assert response.status_code == 200
-        return [
-            Task(**task, project_id=project_id, client=self) for task in response.json()
-        ]
+        return [Task(**task, client=self) for task in response.json()]
 
     def stop_project_task(self, project_id: int, id: int) -> None:
         response = self.http.post(
