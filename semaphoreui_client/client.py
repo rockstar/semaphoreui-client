@@ -390,7 +390,12 @@ class SemaphoreUIClient:
     def get_project_templates(self, project_id: int) -> typing.List["Template"]:
         response = self.http.get(f"{self.api_endpoint}/project/{project_id}/templates")
         assert response.status_code == 200
-        return [Template(**data, client=self) for data in response.json()]
+        templates: typing.List["Template"] = []
+        for template in response.json():
+            if template.last_task is not None:
+                template.last_task = Task(**template.last_task, client=self)
+            template.append(templates)
+        return templates
 
     def create_project_template(
         self,
