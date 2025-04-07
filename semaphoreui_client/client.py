@@ -460,8 +460,8 @@ class SemaphoreUIClient:
         diff: bool,
         message: str,
         git_branch: str,
-        limit: int,
-        environment_id: int,
+        limit: str,
+        environment: str,
         playbook: str,
     ) -> "Task":
         response = self.http.post(
@@ -472,7 +472,7 @@ class SemaphoreUIClient:
                 "dry_run": dry_run,
                 "diff": diff,
                 "playbook": playbook,
-                "environment": environment_id,
+                "environment": environment,
                 "limit": limit,
                 "git_branch": git_branch,
                 "message": message,
@@ -557,7 +557,7 @@ class SemaphoreUIClient:
     def get_project_task(self, project_id: int, id: int) -> "Task":
         response = self.http.get(f"{self.api_endpoint}/project/{project_id}/tasks/{id}")
         assert response.status_code == 200
-        return Task(**response.json(), project_id=project_id, client=self)
+        return Task(**response.json(), client=self)
 
     def delete_project_task(self, project_id: int, id: int) -> None:
         response = self.http.delete(
@@ -946,7 +946,8 @@ class Template:
         dry_run: bool = False,
         diff: bool = False,
         message: str = "",
-        limit: int = 1,
+        limit: str = "",
+        environment: str = "",
     ) -> "Task":
         repo = [
             repo
@@ -963,7 +964,7 @@ class Template:
             message,
             git_branch,
             limit,
-            self.environment_id,
+            environment,
             self.playbook,
         )
 
