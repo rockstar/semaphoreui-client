@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import typing
 
 from dataclasses_json import dataclass_json
@@ -1001,7 +1001,6 @@ class Schedule:
 @dataclass
 class Task:
     arguments: typing.Optional[str]
-    build_task: typing.Optional["Task"]
     build_task_id: typing.Optional[int]
     commit_hash: typing.Optional[str]
     commit_message: str
@@ -1023,15 +1022,20 @@ class Task:
     start: str
     status: str
     template_id: int
-    tpl_alias: str
-    tpl_app: str
-    tpl_playbook: str
-    tpl_type: str
-    user_id: typing.Optional[int]
-    user_name: typing.Optional[str]
-    version: typing.Optional[str]
 
     client: SemaphoreUIClient
+
+    # XXX: rockstar (7 Apr 2025) - These attributes are not always provided,
+    # seemingly based on execution state? Because we aren't using `kw_only`
+    # in our dataclass, the order of these attributes is important.
+    build_task: typing.Optional["Task"] = field(default=None)
+    tpl_alias: typing.Optional[str] = field(default=None)
+    tpl_app: typing.Optional[str] = field(default=None)
+    tpl_playbook: typing.Optional[str] = field(default=None)
+    tpl_type: typing.Optional[str] = field(default=None)
+    user_id: typing.Optional[int] = field(default=None)
+    user_name: typing.Optional[str] = field(default=None)
+    version: typing.Optional[str] = field(default=None)
 
     def stop(self) -> None:
         self.client.stop_project_task(self.project_id, self.id)
