@@ -760,7 +760,7 @@ class Template:
         if limit is not None:
             params["limit"] = limit
         response = self.client.http.get(
-            f"{self.url}/project/{self.project_id}/templates/{self.id}/tasks/last",
+            f"{self.url}/tasks/last",
             params=params,
         )
         assert response.status_code == 200
