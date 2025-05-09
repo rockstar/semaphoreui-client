@@ -847,8 +847,8 @@ class Task:
     def url(self) -> str:
         return f"{self.client.api_endpoint}/project/{self.project_id}/tasks/{self.id}"
 
-    def stop(self) -> None:
-        response = self.client.http.post(f"{self.url}/stop")
+    def stop(self, force: bool = False) -> None:
+        response = self.client.http.post(f"{self.url}/stop", json={"force": force})
         assert response.status_code == 204
 
     def delete(self) -> None:
