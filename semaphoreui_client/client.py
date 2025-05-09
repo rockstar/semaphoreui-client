@@ -43,10 +43,6 @@ class SemaphoreUIClient:
         assert response.status_code == 201
         return Token(**response.json(), client=self)
 
-    def delete_token(self, id: str) -> None:
-        response = self.http.delete(f"{self.api_endpoint}/user/tokens/{id}")
-        assert response.status_code in (204, 404)  # 404 if token was already expired
-
     def projects(self) -> typing.List["Project"]:
         response = self.http.get(f"{self.api_endpoint}/projects")
         assert response.status_code == 200
@@ -80,118 +76,175 @@ class SemaphoreUIClient:
         assert response.status_code == 201
         return Project(**response.json(), client=self)
 
-    def delete_project(self, id: int) -> None:
-        response = self.http.delete(f"{self.api_endpoint}/project/{id}")
-        assert response.status_code == 204
 
-    def update_project(
-        self,
-        id: int,
-        name: str,
-        alert: bool,
-        alert_chat: str,
-        max_parallel_tasks: int,
-        type: typing.Optional[str] = None,
-    ) -> None:
-        response = self.http.put(
-            f"{self.api_endpoint}/project/{id}",
+@dataclass
+class Integration:
+    """A project integration"""
+
+    id: int
+    name: str
+    project_id: int
+    template_id: int
+
+    client: SemaphoreUIClient
+
+    def save(self) -> None:
+        response = self.client.http.put(
+            f"{self.client.api_endpoint}/project/{self.project_id}/integrations/{self.id}",
             json={
-                "name": name,
-                "alert": alert,
-                "alert_chat": alert_chat,
-                "max_parallel_tasks": max_parallel_tasks,
-                "type": type,
+                "project_id": self.project_id,
+                "name": self.name,
+                "template_id": self.template_id,
             },
         )
         assert response.status_code == 204
 
-    def backup_project(self, id: int) -> "ProjectBackup":
-        response = self.http.get(f"{self.api_endpoint}/project/{id}/backup")
+    def delete(self) -> None:
+        response = self.client.http.delete(
+            f"{self.client.api_endpoint}/project/{self.project_id}/integrations/{self.id}"
+        )
+        assert response.status_code == 204
+
+
+@dataclass
+class Token:
+    """An authorization token."""
+
+    id: str
+    created: str
+    expired: bool
+    user_id: int
+
+    client: SemaphoreUIClient
+
+    def delete(self) -> None:
+        response = self.client.http.delete(
+            f"{self.client.api_endpoint}/user/tokens/{self.id}"
+        )
+        assert response.status_code in (204, 404)  # 404 if token was already expired
+
+
+@dataclass
+class Project:
+    """A Semaphore UI project."""
+
+    id: int
+    name: str
+    created: str
+    alert: bool
+    alert_chat: str
+    max_parallel_tasks: int
+    type: str  # This might be an enum?
+
+    client: SemaphoreUIClient
+
+    @property
+    def url(self) -> str:
+        return f"{self.client.api_endpoint}/project/{self.id}"
+
+    def delete(self) -> None:
+        response = self.client.http.delete(
+            f"{self.client.api_endpoint}/project/{self.id}"
+        )
+        assert response.status_code == 204
+
+    def save(self) -> None:
+        response = self.client.http.put(
+            f"{self.client.api_endpoint}/project/{self.id}",
+            json={
+                "name": self.name,
+                "alert": self.alert,
+                "alert_chat": self.alert_chat,
+                "max_parallel_tasks": self.max_parallel_tasks,
+                "type": self.type,
+            },
+        )
+        assert response.status_code == 204
+
+    def backup(self) -> "ProjectBackup":
+        response = self.client.http.get(
+            f"{self.client.api_endpoint}/project/{self.id}/backup"
+        )
         assert response.status_code == 200
         return ProjectBackup(**response.json())
 
-    def get_project_role(self, id: int) -> "Permissions":
-        response = self.http.get(f"{self.api_endpoint}/project/{id}/role")
+    def role(self) -> "Permissions":
+        response = self.client.http.get(
+            f"{self.client.api_endpoint}/project/{self.id}/role"
+        )
         assert response.status_code == 200
         return Permissions(**response.json())
 
-    def get_project_events(self, id: int) -> typing.List["Event"]:
-        response = self.http.get(f"{self.api_endpoint}/project/{id}/events")
+    def events(self) -> typing.List["Event"]:
+        response = self.client.http.get(
+            f"{self.client.api_endpoint}/project/{self.id}/events"
+        )
         assert response.status_code == 200
         return [Event(**data) for data in response.json()]
 
-    def get_project_users(self, id: int, sort: str, order: str) -> typing.List["User"]:
-        response = self.http.get(f"{self.api_endpoint}/project/{id}/")
+    def users(
+        self, sort: typing.Optional[str] = None, order: typing.Optional[str] = None
+    ) -> typing.List["ProjectUser"]:
+        params = {}
+        if sort is not None:
+            params["sort"] = sort
+        if order is not None:
+            params["order"] = order
+        response = self.client.http.get(
+            f"{self.client.api_endpoint}/project/{self.id}/users", params=params
+        )
         assert response.status_code == 200
-        return [User(**data) for data in response.json()]
+        return [
+            ProjectUser(**data, client=self.client, project_id=self.id)
+            for data in response.json()
+        ]
 
-    def add_project_user(self, id: int, user: "User") -> None:
-        response = self.http.post(
-            f"{self.api_endpoint}/project/{id}/users",
+    def add_user(self, user: "ProjectUser") -> None:
+        response = self.client.http.post(
+            f"{self.client.api_endpoint}/project/{self.id}/users",
             json=user.to_json(),  # type: ignore
         )
         assert response.status_code == 204
 
-    def update_project_user(self, id: int, user: "User") -> None:
-        response = self.http.put(
-            f"{self.api_endpoint}/project/{id}/users/{user.id}",
+    def remove_user(self, user_id: int) -> None:
+        response = self.client.http.delete(
+            f"{self.client.api_endpoint}/project/{self.id}/users/{user_id}"
+        )
+        assert response.status_code == 204
+
+    def update_user(self, user: "ProjectUser") -> None:
+        response = self.client.http.put(
+            f"{self.client.api_endpoint}/project/{self.id}/users/{user.id}",
             json=user.to_json(),  # type: ignore
         )
         assert response.status_code == 204
 
-    def remove_project_user(self, id: int, user_id: int) -> None:
-        response = self.http.delete(f"{self.api_endpoint}/project/{id}/users/{user_id}")
-        assert response.status_code == 204
-
-    def get_project_integrations(self, id: int) -> typing.List["Integration"]:
-        response = self.http.get(f"{self.api_endpoint}/project/{id}/integrations")
-        assert response.status_code == 200
-        return [Integration(**data, client=self) for data in response.json()]
-
-    def create_project_integrations(
-        self, project_id: int, name: str, template_id: int
-    ) -> "Integration":
-        response = self.http.post(
-            f"{self.api_endpoint}/project/{id}integrations",
-            json={"project_id": project_id, "name": name, "template_id": template_id},
-        )
-        assert response.status_code == 200
-        return Integration(**response.json(), client=self)
-
-    def update_project_integration(
-        self, project_id: int, id: int, name: str, template_id: int
-    ) -> None:
-        response = self.http.put(
-            f"{self.api_endpoint}/project/{project_id}/integrations/{id}",
-            json={"project_id": project_id, "name": name, "template_id": template_id},
-        )
-        assert response.status_code == 204
-
-    def delete_project_integration(self, project_id: int, id: int) -> None:
-        response = self.http.delete(
-            f"{self.api_endpoint}/project/{project_id}/integrations/{id}"
-        )
-        assert response.status_code == 204
-
-    def get_project_keys(
+    def keys(
         self,
-        project_id: int,
         key_type: typing.Optional[str] = None,
         sort: typing.Optional[str] = None,
         order: typing.Optional[str] = None,
     ) -> typing.List["Key"]:
-        response = self.http.get(f"{self.api_endpoint}/project/{project_id}/keys")
+        params = {}
+        if key_type is not None:
+            params["key_type"] = key_type
+        if sort is not None:
+            params["sort"] = sort
+        if order is not None:
+            params["order"] = order
+        response = self.client.http.get(
+            f"{self.client.api_endpoint}/project/{self.id}/keys", params=params
+        )
         assert response.status_code == 200
-        return [Key(**data, client=self) for data in response.json()]
+        return [Key(**data, client=self.client) for data in response.json()]
 
-    def create_project_key(
+    def create_key(
         self,
-        project_id: int,
         name: str,
         key_type: str,
-        override_secret: bool,
-        login_password: typing.Optional[typing.Tuple[str, str]],
-        ssh: typing.Optional[typing.Tuple[str, str, str]],
+        override_secret: bool = False,
+        login_password: typing.Optional[typing.Tuple[str, str]] = None,
+        ssh: typing.Optional[typing.Tuple[str, str, str]] = None,
     ) -> "Key":
         if key_type not in ("ssh", "login_password"):
             raise ValueError(
@@ -202,7 +255,7 @@ class SemaphoreUIClient:
                 raise ValueError("ssh parameter must be set on key_type: ssh")
             json_data = {
                 "id": 0,
-                "project_id": project_id,
+                "project_id": self.id,
                 "name": name,
                 "type": key_type,
                 "override_secret": override_secret,
@@ -223,7 +276,7 @@ class SemaphoreUIClient:
                 )
             json_data = {
                 "id": 0,
-                "project_id": project_id,
+                "project_id": self.id,
                 "name": name,
                 "type": key_type,
                 "override_secret": override_secret,
@@ -233,40 +286,32 @@ class SemaphoreUIClient:
                 },
                 "ssh": {"login": "", "passphrase": "", "private_key": ""},
             }
-        response = self.http.post(
-            f"{self.api_endpoint}/project/{project_id}/keys", json=json_data
+        response = self.client.http.post(
+            f"{self.client.api_endpoint}/project/{self.id}/keys", json=json_data
         )
         assert response.status_code == 204
 
         try:
-            return Key(**response.json(), client=self)
+            return Key(**response.json(), client=self.client)
         except ValueError:
             # Sporadically, the response is an empty string. Get the actual key from the API
-            return [
-                key for key in self.get_project_keys(project_id) if key.name == name
-            ][0]
+            return [key for key in self.keys() if key.name == name][0]
 
-    def delete_project_key(self, project_id: int, id: int) -> None:
-        response = self.http.delete(
-            f"{self.api_endpoint}/project/{project_id}/keys/{id}"
-        )
-        assert response.status_code == 204
-
-    def get_project_repositories(self, project_id: int) -> typing.List["Repository"]:
-        response = self.http.get(
-            f"{self.api_endpoint}/project/{project_id}/repositories"
+    def repositories(self) -> typing.List["Repository"]:
+        response = self.client.http.get(
+            f"{self.client.api_endpoint}/project/{self.id}/repositories"
         )
         assert response.status_code == 200
-        return [Repository(**data, client=self) for data in response.json()]
+        return [Repository(**data, client=self.client) for data in response.json()]
 
-    def create_project_repository(
-        self, project_id: int, name: str, git_url: str, git_branch: str, ssh_key_id: int
+    def create_repository(
+        self, name: str, git_url: str, git_branch: str, ssh_key_id: int
     ) -> "Repository":
-        response = self.http.post(
-            f"{self.api_endpoint}/project/{project_id}/repositories",
+        response = self.client.http.post(
+            f"{self.client.api_endpoint}/project/{self.id}/repositories",
             json={
                 "name": name,
-                "project_id": project_id,
+                "project_id": self.id,
                 "git_url": git_url,
                 "git_branch": git_branch,
                 "ssh_key_id": ssh_key_id,
@@ -274,41 +319,30 @@ class SemaphoreUIClient:
         )
         assert response.status_code == 204
         try:
-            return Repository(**response.json(), client=self)
+            return Repository(**response.json(), client=self.client)
         except ValueError:
-            return [
-                repo
-                for repo in self.get_project_repositories(project_id)
-                if repo.name == name
-            ][0]
+            return [repo for repo in self.repositories() if repo.name == name][0]
 
-    def delete_project_repository(self, project_id: int, id: int) -> None:
-        response = self.http.delete(
-            f"{self.api_endpoint}/project/{project_id}/repositories/{id}"
-        )
-        assert response.status_code == 204
-
-    def get_project_environments(self, project_id: int) -> typing.List["Environment"]:
-        response = self.http.get(
-            f"{self.api_endpoint}/project/{project_id}/environment"
+    def environments(self) -> typing.List["Environment"]:
+        response = self.client.http.get(
+            f"{self.client.api_endpoint}/project/{self.id}/environment"
         )
         assert response.status_code == 200
-        return [Environment(**data, client=self) for data in response.json()]
+        return [Environment(**data, client=self.client) for data in response.json()]
 
-    def create_project_environment(
+    def create_environment(
         self,
-        project_id: int,
         name: str,
         password: str,
         json: str,
         env: str,
         secrets: typing.List[typing.Dict[typing.Any, typing.Any]],
     ) -> "Environment":
-        response = self.http.post(
-            f"{self.api_endpoint}/project/{project_id}/environment",
+        response = self.client.http.post(
+            f"{self.url}/environment",
             json={
                 "name": name,
-                "project_id": project_id,
+                "project_id": self.id,
                 "password": None,
                 "json": json,
                 "env": env,
@@ -317,89 +351,67 @@ class SemaphoreUIClient:
         )
         assert response.status_code == 204
         try:
-            return Environment(**response.json(), client=self)
+            return Environment(**response.json(), client=self.client)
         except ValueError:
-            return [
-                env
-                for env in self.get_project_environments(project_id)
-                if env.name == name
-            ][0]
+            return [env for env in self.environments() if env.name == name][0]
 
-    def delete_project_environment(self, project_id: int, id: int) -> None:
-        response = self.http.delete(
-            f"{self.api_endpoint}/project/{project_id}/environment/{id}"
-        )
-        assert response.status_code == 204
-
-    def get_project_views(self, project_id: int) -> typing.List["View"]:
-        response = self.http.get(f"{self.api_endpoint}/project/{project_id}/views")
+    def views(self) -> typing.List["View"]:
+        response = self.client.http.get(f"{self.url}/views")
         assert response.status_code == 200
-        return [View(**data, client=self) for data in response.json()]
+        return [View(**data, client=self.client) for data in response.json()]
 
-    def create_project_view(self, project_id: int, title: str, position: int) -> "View":
-        response = self.http.post(
-            f"{self.api_endpoint}/project/{project_id}/views",
-            json={"position": position, "title": title, "project_id": project_id},
+    def create_view(self, title: str, position: int) -> "View":
+        response = self.client.http.post(
+            f"{self.url}/views",
+            json={"position": position, "title": title, "project_id": self.id},
         )
         assert response.status_code == 201
-        return View(**response.json(), client=self)
+        return View(**response.json(), client=self.client)
 
-    def delete_project_view(self, project_id: int, id: int) -> None:
-        response = self.http.delete(
-            f"{self.api_endpoint}/project/{project_id}/views/{id}"
-        )
-        assert response.status_code == 204
-
-    def get_project_inventories(self, project_id: int) -> typing.List["Inventory"]:
-        response = self.http.get(f"{self.api_endpoint}/project/{project_id}/inventory")
+    def inventories(self) -> typing.List["Inventory"]:
+        response = self.client.http.get(f"{self.url}/inventory")
         assert response.status_code == 200
-        return [Inventory(**data, client=self) for data in response.json()]
+        return [Inventory(**data, client=self.client) for data in response.json()]
 
-    def create_project_inventory(
+    def create_inventory(
         self,
-        project_id: int,
         name: str,
         inventory: str,
         ssh_key_id: int,
         become_key_id: int,
         type: str,
-        repostory_id: int,
+        repository_id: int,
     ) -> "Inventory":
-        response = self.http.post(
-            f"{self.api_endpoint}/project/{project_id}/inventory",
+        response = self.client.http.post(
+            f"{self.url}/inventory",
             json={
                 "id": 0,
                 "name": name,
-                "project_id": project_id,
+                "project_id": self.id,
                 "inventory": inventory,
                 "ssh_key_id": ssh_key_id,
                 "become_key_id": become_key_id,
                 "type": type,
-                "repository_id": repostory_id,
+                "repository_id": repository_id,
             },
         )
         assert response.status_code == 201
-        return Inventory(**response.json(), client=self)
+        return Inventory(**response.json(), client=self.client)
 
-    def delete_project_inventory(self, project_id: int, id: int) -> None:
-        response = self.http.delete(
-            f"{self.api_endpoint}/project/{project_id}/inventory/{id}"
-        )
-        assert response.status_code == 204
-
-    def get_project_templates(self, project_id: int) -> typing.List["Template"]:
-        response = self.http.get(f"{self.api_endpoint}/project/{project_id}/templates")
+    def templates(self) -> typing.List["Template"]:
+        response = self.client.http.get(f"{self.url}/templates")
         assert response.status_code == 200
         templates: typing.List["Template"] = []
         for template in response.json():
             if template["last_task"] is not None:
-                template["last_task"] = Task(**template["last_task"], client=self)
-            templates.append(Template(**template, client=self))
+                template["last_task"] = Task(
+                    **template["last_task"], client=self.client
+                )
+            templates.append(Template(**template, client=self.client))
         return templates
 
-    def create_project_template(
+    def create_template(
         self,
-        project_id: int,
         name: str,
         repository_id: int,
         inventory_id: int,
@@ -420,11 +432,11 @@ class SemaphoreUIClient:
         autorun: bool,
         build_template_id: typing.Optional[int] = None,
     ) -> "Template":
-        response = self.http.post(
-            f"{self.api_endpoint}/project/{project_id}/templates",
+        response = self.client.http.post(
+            f"{self.url}/templates",
             json={
                 "id": 0,
-                "project_id": project_id,
+                "project_id": self.id,
                 "inventory_id": inventory_id,
                 "repository_id": repository_id,
                 "environment_id": environment_id,
@@ -449,338 +461,58 @@ class SemaphoreUIClient:
         assert response.status_code == 201, (
             f"Expected response code 201, got {response.status_code}"
         )
-        return Template(**response.json(), client=self)
-
-    def run_template(
-        self,
-        template_id: int,
-        project_id: int,
-        debug: bool,
-        dry_run: bool,
-        diff: bool,
-        message: str,
-        git_branch: str,
-        limit: str,
-        environment: str,
-        playbook: str,
-    ) -> "Task":
-        response = self.http.post(
-            f"{self.api_endpoint}/project/{project_id}/tasks",
-            json={
-                "template_id": template_id,
-                "debug": debug,
-                "dry_run": dry_run,
-                "diff": diff,
-                "playbook": playbook,
-                "environment": environment,
-                "limit": limit,
-                "git_branch": git_branch,
-                "message": message,
-            },
-        )
-        assert response.status_code == 201
-        # The response is not quite a full task, so re-fetch it.
-        return self.get_project_task(project_id, response.json()["id"])
-
-    def delete_project_template(self, project_id: int, id: int) -> None:
-        response = self.http.delete(
-            f"{self.api_endpoint}/project/{project_id}/templates/{id}"
-        )
-        assert response.status_code == 204
-
-    def get_project_schedules(self, project_id: int) -> typing.List["Schedule"]:
-        response = self.http.get(f"{self.api_endpoint}/project/{project_id}/schedules")
-        assert response.status_code == 200
-        return [Schedule(**schedule, client=self) for schedule in response.json()]
-
-    def create_project_schedule(
-        self,
-        project_id: int,
-        template_id: int,
-        name: str,
-        cron_format: str,
-        active: bool = True,
-    ) -> "Schedule":
-        response = self.http.post(
-            f"{self.api_endpoint}/project/{project_id}/schedules",
-            json={
-                "id": 0,
-                "project_id": project_id,
-                "template_id": template_id,
-                "name": name,
-                "cron_format": cron_format,
-                "active": active,
-            },
-        )
-        assert response.status_code == 201
-        return Schedule(**response.json(), client=self)
-
-    def update_project_schedule(
-        self,
-        project_id: int,
-        schedule_id: int,
-        template_id: int,
-        name: str,
-        cron_format: str,
-        active: bool,
-    ) -> None:
-        response = self.http.post(
-            f"{self.api_endpoint}/project/{project_id}/schedules",
-            json={
-                "id": schedule_id,
-                "project_id": project_id,
-                "template_id": template_id,
-                "name": name,
-                "cron_format": cron_format,
-                "active": active,
-            },
-        )
-        assert response.status_code == 201
-
-    def delete_project_schedule(self, project_id: int, schedule_id: int) -> None:
-        response = self.http.delete(
-            f"{self.api_endpoint}/project/{project_id}/schedules/{schedule_id}"
-        )
-        assert response.status_code == 204
-
-    def get_project_tasks(self, project_id: int) -> typing.List["Task"]:
-        response = self.http.get(f"{self.api_endpoint}/project/{project_id}/tasks")
-        assert response.status_code == 200
-        return [Task(**task, client=self) for task in response.json()]
-
-    def stop_project_task(self, project_id: int, id: int) -> None:
-        response = self.http.post(
-            f"{self.api_endpoint}/project/{project_id}/tasks/{id}/stop"
-        )
-        assert response.status_code == 204
-
-    def get_project_task(self, project_id: int, id: int) -> "Task":
-        response = self.http.get(f"{self.api_endpoint}/project/{project_id}/tasks/{id}")
-        assert response.status_code == 200
-        return Task(**response.json(), client=self)
-
-    def delete_project_task(self, project_id: int, id: int) -> None:
-        response = self.http.delete(
-            f"{self.api_endpoint}/project/{project_id}/tasks/{id}"
-        )
-        assert response.status_code == 204
-
-    def get_project_task_output(self, project_id: int, id: int) -> typing.List[str]:
-        response = self.http.get(
-            f"{self.api_endpoint}/project/{project_id}/tasks/{id}/output"
-        )
-        assert response.status_code == 200
-        return [data["output"] for data in response.json()]
-
-
-@dataclass
-class Integration:
-    """A project integration"""
-
-    id: int
-    name: str
-    project_id: int
-    template_id: int
-
-    client: SemaphoreUIClient
-
-    def save(self) -> None:
-        self.client.update_project_integration(
-            self.project_id, self.id, self.name, self.template_id
-        )
-
-    def delete(self) -> None:
-        self.client.delete_project_integration(self.project_id, self.id)
-
-
-@dataclass
-class Token:
-    """An authorization token."""
-
-    id: str
-    created: str
-    expired: bool
-    user_id: int
-
-    client: SemaphoreUIClient
-
-    def delete(self) -> None:
-        self.client.delete_token(self.id)
-
-
-@dataclass
-class Project:
-    """A Semaphore UI project."""
-
-    id: int
-    name: str
-    created: str
-    alert: bool
-    alert_chat: str
-    max_parallel_tasks: int
-    type: str  # This might be an enum?
-
-    client: SemaphoreUIClient
-
-    def delete(self) -> None:
-        self.client.delete_project(self.id)
-
-    def save(self) -> None:
-        self.client.update_project(
-            self.id,
-            self.name,
-            self.alert,
-            self.alert_chat,
-            self.max_parallel_tasks,
-            self.type,
-        )
-
-    def backup(self) -> "ProjectBackup":
-        return self.client.backup_project(self.id)
-
-    def role(self) -> "Permissions":
-        return self.client.get_project_role(self.id)
-
-    def events(self) -> typing.List["Event"]:
-        return self.client.get_project_events(self.id)
-
-    def users(self, sort: str, order: str) -> typing.List["User"]:
-        return self.client.get_project_users(self.id, sort, order)
-
-    def add_user(self, user: "User") -> None:
-        return self.client.add_project_user(self.id, user)
-
-    def remove_user(self, user_id: int) -> None:
-        return self.client.remove_project_user(self.id, user_id)
-
-    def update_user(self, user: "User") -> None:
-        return self.client.update_project_user(self.id, user)
-
-    def keys(self) -> typing.List["Key"]:
-        return self.client.get_project_keys(self.id)
-
-    def create_key(
-        self,
-        name: str,
-        key_type: str,
-        override_secret: bool = False,
-        login_password: typing.Optional[typing.Tuple[str, str]] = None,
-        ssh: typing.Optional[typing.Tuple[str, str, str]] = None,
-    ) -> "Key":
-        return self.client.create_project_key(
-            self.id, name, key_type, override_secret, login_password, ssh
-        )
-
-    def repositories(self) -> typing.List["Repository"]:
-        return self.client.get_project_repositories(self.id)
-
-    def create_repository(
-        self, name: str, git_url: str, git_branch: str, ssh_key_id: int
-    ) -> "Repository":
-        return self.client.create_project_repository(
-            self.id, name, git_url, git_branch, ssh_key_id
-        )
-
-    def environments(self) -> typing.List["Environment"]:
-        return self.client.get_project_environments(self.id)
-
-    def create_environment(
-        self,
-        name: str,
-        password: str,
-        json: str,
-        env: str,
-        secrets: typing.List[typing.Dict[typing.Any, typing.Any]],
-    ) -> "Environment":
-        return self.client.create_project_environment(
-            self.id, name, password, json, env, secrets
-        )
-
-    def views(self) -> typing.List["View"]:
-        return self.client.get_project_views(self.id)
-
-    def create_view(self, title: str, position: int) -> "View":
-        return self.client.create_project_view(self.id, title, position)
-
-    def inventories(self) -> typing.List["Inventory"]:
-        return self.client.get_project_inventories(self.id)
-
-    def create_inventory(
-        self,
-        name: str,
-        inventory: str,
-        ssh_key_id: int,
-        become_key_id: int,
-        type: str,
-        repository_id: int,
-    ) -> "Inventory":
-        return self.client.create_project_inventory(
-            self.id, name, inventory, ssh_key_id, become_key_id, type, repository_id
-        )
-
-    def templates(self) -> typing.List["Template"]:
-        return self.client.get_project_templates(self.id)
-
-    def create_template(
-        self,
-        name: str,
-        repository_id: int,
-        inventory_id: int,
-        environment_id: int,
-        view_id: int,
-        vault_id: int,
-        playbook: str,
-        arguments: str,
-        description: str,
-        allow_override_args_in_task: bool,
-        limit: int,
-        suppress_success_alerts: bool,
-        app: str,
-        git_branch: str,
-        survey_vars: typing.List[typing.Dict[str, typing.Any]],
-        type: str,
-        start_version: str,
-        autorun: bool,
-        build_template_id: typing.Optional[int] = None,
-    ) -> "Template":
-        return self.client.create_project_template(
-            self.id,
-            name,
-            repository_id,
-            inventory_id,
-            environment_id,
-            view_id,
-            vault_id,
-            playbook,
-            arguments,
-            description,
-            allow_override_args_in_task,
-            limit,
-            suppress_success_alerts,
-            app,
-            git_branch,
-            survey_vars,
-            type,
-            start_version,
-            autorun,
-            build_template_id,
-        )
+        return Template(**response.json(), client=self.client)
 
     def schedules(self) -> typing.List["Schedule"]:
-        return self.client.get_project_schedules(self.id)
+        response = self.client.http.get(f"{self.url}/schedules")
+        assert response.status_code == 200
+        return [
+            Schedule(**schedule, client=self.client) for schedule in response.json()
+        ]
 
     def create_schedule(
         self, template_id: int, name: str, cron_format: str, active: bool = True
     ) -> "Schedule":
-        return self.client.create_project_schedule(
-            self.id, template_id, name, cron_format, active
+        response = self.client.http.post(
+            f"{self.url}/schedules",
+            json={
+                "id": 0,
+                "project_id": self.id,
+                "template_id": template_id,
+                "name": name,
+                "cron_format": cron_format,
+                "active": active,
+            },
         )
+        assert response.status_code == 201
+        return Schedule(**response.json(), client=self.client)
 
     def tasks(self) -> typing.List["Task"]:
-        return self.client.get_project_tasks(self.id)
+        response = self.client.http.get(f"{self.url}/tasks")
+        assert response.status_code == 200
+        return [Task(**task, client=self.client) for task in response.json()]
 
     def get_task(self, task_id: int) -> "Task":
-        return self.client.get_project_task(self.id, task_id)
+        response = self.client.http.get(
+            f"{self.client.api_endpoint}/project/{self.id}/tasks/{task_id}"
+        )
+        assert response.status_code == 200
+        return Task(**response.json(), client=self.client)
+
+    def integrations(self) -> typing.List["Integration"]:
+        response = self.client.http.get(
+            f"{self.client.api_endpoint}/project/{self.id}/integrations"
+        )
+        assert response.status_code == 200
+        return [Integration(**data, client=self.client) for data in response.json()]
+
+    def create_integration(self, name: str, template_id: int) -> "Integration":
+        response = self.client.http.post(
+            f"{self.client.api_endpoint}/project/{self.id}integrations",
+            json={"project_id": self.id, "name": name, "template_id": template_id},
+        )
+        assert response.status_code == 200
+        return Integration(**response.json(), client=self.client)
 
 
 @dataclass
@@ -804,13 +536,19 @@ class Event:
 
 @dataclass_json
 @dataclass
-class User:
-    user_id: int
+class ProjectUser:
+    id: int
+    name: str
+    username: str
     role: str
 
+    project_id: int
+
+    client: SemaphoreUIClient
+
     @property
-    def id(self) -> int:
-        return self.user_id
+    def url(self) -> str:
+        return f"{self.client.api_endpoint}/project/{self.project_id}/users/{self.id}"
 
 
 @dataclass
@@ -840,8 +578,13 @@ class Key:
 
     client: SemaphoreUIClient
 
+    @property
+    def url(self) -> str:
+        return f"{self.client.api_endpoint}/project/{self.project_id}/keys/{self.id}"
+
     def delete(self) -> None:
-        self.client.delete_project_key(self.project_id, self.id)
+        response = self.client.http.delete(self.url)
+        assert response.status_code == 204
 
 
 @dataclass
@@ -855,8 +598,13 @@ class Repository:
 
     client: SemaphoreUIClient
 
+    @property
+    def url(self) -> str:
+        return f"{self.client.api_endpoint}/project/{self.project_id}/repositories/{self.id}"
+
     def delete(self) -> None:
-        self.client.delete_project_repository(self.project_id, self.id)
+        response = self.client.http.delete(self.url)
+        assert response.status_code == 204
 
 
 @dataclass
@@ -878,8 +626,13 @@ class Environment:
 
     client: SemaphoreUIClient
 
+    @property
+    def url(self) -> str:
+        return f"{self.client.api_endpoint}/project/{self.project_id}/environment/{self.id}"
+
     def delete(self) -> None:
-        self.client.delete_project_environment(self.project_id, self.id)
+        response = self.client.http.delete(self.url)
+        assert response.status_code == 204
 
 
 @dataclass
@@ -891,8 +644,13 @@ class View:
 
     client: SemaphoreUIClient
 
+    @property
+    def url(self) -> str:
+        return f"{self.client.api_endpoint}/project/{self.project_id}/views/{self.id}"
+
     def delete(self) -> None:
-        self.client.delete_project_view(self.project_id, self.id)
+        response = self.client.http.delete(self.url)
+        assert response.status_code == 204
 
 
 @dataclass
@@ -910,8 +668,16 @@ class Inventory:
 
     client: SemaphoreUIClient
 
+    def url(self) -> str:
+        return (
+            f"{self.client.api_endpoint}/project/{self.project_id}/inventory/{self.id}"
+        )
+
     def delete(self) -> None:
-        self.client.delete_project_inventory(self.project_id, self.id)
+        response = self.client.http.delete(
+            f"{self.client.api_endpoint}/project/{self.project_id}/inventory/{self.id}"
+        )
+        assert response.status_code == 204
 
 
 @dataclass
@@ -940,6 +706,12 @@ class Template:
 
     client: SemaphoreUIClient
 
+    @property
+    def url(self) -> str:
+        return (
+            f"{self.client.api_endpoint}/project/{self.project_id}/templates/{self.id}"
+        )
+
     def run(
         self,
         debug: bool = False,
@@ -949,27 +721,33 @@ class Template:
         limit: str = "",
         environment: str = "",
     ) -> "Task":
+        project = self.client.get_project(self.project_id)
         repo = [
-            repo
-            for repo in self.client.get_project_repositories(self.project_id)
-            if repo.id == self.repository_id
+            repo for repo in project.repositories() if repo.id == self.repository_id
         ][0]
         git_branch = repo.git_branch
-        return self.client.run_template(
-            self.id,
-            self.project_id,
-            debug,
-            dry_run,
-            diff,
-            message,
-            git_branch,
-            limit,
-            environment,
-            self.playbook,
+        response = self.client.http.post(
+            f"{self.client.api_endpoint}/project/{self.project_id}/tasks",
+            json={
+                "template_id": self.id,
+                "debug": debug,
+                "dry_run": dry_run,
+                "diff": diff,
+                "playbook": self.playbook,
+                "environment": environment,
+                "limit": limit,
+                "git_branch": git_branch,
+                "message": message,
+            },
         )
+        assert response.status_code == 201
+        # The response is not quite a full task, so re-fetch it.
+        project = self.client.get_project(self.project_id)
+        return project.get_task(response.json()["id"])
 
     def delete(self) -> None:
-        self.client.delete_project_template(self.project_id, self.id)
+        response = self.client.http.delete(self.url)
+        assert response.status_code == 204
 
 
 @dataclass
@@ -984,18 +762,29 @@ class Schedule:
 
     client: SemaphoreUIClient
 
-    def save(self) -> None:
-        self.client.update_project_schedule(
-            self.project_id,
-            self.id,
-            self.template_id,
-            self.name,
-            self.cron_format,
-            self.active,
+    @property
+    def url(self) -> str:
+        return (
+            f"{self.client.api_endpoint}/project/{self.project_id}/schedules/{self.id}"
         )
 
+    def save(self) -> None:
+        response = self.client.http.post(
+            self.url,
+            json={
+                "id": self.id,
+                "project_id": self.project_id,
+                "template_id": self.template_id,
+                "name": self.name,
+                "cron_format": self.cron_format,
+                "active": self.active,
+            },
+        )
+        assert response.status_code == 201
+
     def delete(self) -> None:
-        self.client.delete_project_schedule(self.project_id, self.id)
+        response = self.client.http.delete(self.url)
+        assert response.status_code == 204
 
 
 @dataclass
@@ -1037,11 +826,19 @@ class Task:
     user_name: typing.Optional[str] = field(default=None)
     version: typing.Optional[str] = field(default=None)
 
+    @property
+    def url(self) -> str:
+        return f"{self.client.api_endpoint}/project/{self.project_id}/tasks/{self.id}"
+
     def stop(self) -> None:
-        self.client.stop_project_task(self.project_id, self.id)
+        response = self.client.http.post(f"{self.url}/stop")
+        assert response.status_code == 204
 
     def delete(self) -> None:
-        self.client.delete_project_task(self.project_id, self.id)
+        response = self.client.http.delete(self.url)
+        assert response.status_code == 204
 
     def output(self) -> typing.List[str]:
-        return self.client.get_project_task_output(self.project_id, self.id)
+        response = self.client.http.get(f"{self.url}/output")
+        assert response.status_code == 200
+        return [data["output"] for data in response.json()]
