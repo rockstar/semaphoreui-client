@@ -749,6 +749,23 @@ class Template:
         response = self.client.http.delete(self.url)
         assert response.status_code == 204
 
+    def last_tasks(self, limit: typing.Optional[int] = None) -> typing.List["Task"]:
+        """Get the last tasks.
+
+        This function is _technically_ undocumented in the SemaphoreUI
+        swagger doc. It was sleuthed out in the UI, so it may be
+        an unstable function.
+        """
+        params = {}
+        if limit is not None:
+            params["limit"] = limit
+        response = self.client.http.get(
+            f"{self.url}/project/{self.project_id}/templates/{self.id}/tasks/last",
+            params=params,
+        )
+        assert response.status_code == 200
+        return [Task(**task, client=self.client) for task in response.json()]
+
 
 @dataclass
 class Schedule:
